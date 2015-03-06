@@ -1,0 +1,65 @@
+#!/bin/sh
+
+LOCK_FILE=/tmp/deployvv.lock
+
+
+start() {
+	# if exists, exit.
+	if ! mkdir ${LOCK_FILE} 2>/dev/null; then
+		echo "deployvv is already running"
+		exit 1
+	else
+		nohup /opt/deployvv/bin/deploy.sh &
+		# get parent pid
+		deploy_id="$!"
+		echo "deploy id is $deploy_id"
+		touch ${LOCK_FILE}/${deploy_id}
+	fi
+
+}
+
+stop() {
+	deploy_id=`cd ${LOCK_FILE} && ls`
+	kill -9 ${deploy_id}
+	trap 'rm -rf "$LOCK_FILE"' 0
+	echo "stop deploy finished!"
+}
+
+status() {
+	deploy_id=`cd "$LOCK_FILE" && ls`
+	ps -e | grep "$deploy_id"
+	if [[ 0 -ne $? ]]; then 
+		echo "deployvv is not start."; 
+	else
+		echo "deployvv is running"
+	fi
+}
+
+menu() {
+
+	case "$1" in
+		start)
+			start
+			;;
+		stop)
+			stop
+			;;
+		restart)
+			stop
+			start
+			;;
+		status)
+			status
+			;;
+		reload)
+			stop
+			start
+			;;
+		*)
+			echo "Usage: $0 {start|stop|status|restart|reload}"
+			return 1
+			;;
+	esac
+}
+
+menu $1
